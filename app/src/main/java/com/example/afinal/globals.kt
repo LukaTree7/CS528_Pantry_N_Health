@@ -14,6 +14,8 @@ class AppState {
     var fontSize by mutableStateOf(16f)
         private set
 
+    var stepCount by mutableStateOf(0)
+
     fun toggleDarkMode() {
         isDarkMode = !isDarkMode
     }

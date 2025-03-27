@@ -1,6 +1,13 @@
 package com.example.afinal
 
 import LocalAppState
+import android.annotation.SuppressLint
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,22 +22,46 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun ExerciseScreen() {
     val appState = LocalAppState.current
+    val context = LocalContext.current
+
+    // Calculate derived metrics
+    val distanceKm = remember(appState.stepCount) {
+        String.format("%.1f", appState.stepCount * 0.000762)
+    }
+
+    val caloriesBurned = remember(appState.stepCount) {
+        String.format("%.1f", appState.stepCount * 0.04)
+    }
 
     MaterialTheme(
         colorScheme = if (appState.isDarkMode) darkColorScheme() else lightColorScheme()
@@ -47,47 +78,197 @@ fun ExerciseScreen() {
             },
             contentAlignment = Alignment.Center
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.avatar),
-                    contentDescription = "Side Image",
+            Column {
+                Row(
                     modifier = Modifier
-                        .size(100.dp)
-                        .clickable {
-                            println("Side image clicked!")
-                        }
-                        .padding(end = 16.dp)
-                )
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    HealthMetricCard(
-                        iconResId = R.drawable.step,
-                        value = "10,000",
-                        unit = "steps",
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.avatar),
+                        contentDescription = "User Avatar",
+                        modifier = Modifier
+                            .size(160.dp)
+                            .clickable { println("Avatar clicked") }
+                            .padding(end = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        HealthMetricCard(
+                            iconResId = R.drawable.step,
+                            value = "${ appState.stepCount }",
+                            unit = "steps",
+                        )
+                        HealthMetricCard(
+                            iconResId = R.drawable.dist,
+                            value = distanceKm,
+                            unit = "km",
+                        )
+                        HealthMetricCard(
+                            iconResId = R.drawable.flame,
+                            value = caloriesBurned,
+                            unit = "kcal",
+                        )
+                    }
+                }
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    elevation = CardDefaults.cardElevation(4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Daily Health Tip",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+
+                        Text(
+                            text = "Walking 8,000 steps daily improves cardiovascular health. Keep up your current activity level.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Text(
+                            text = "Walking 8,000 steps daily improves cardiovascular health. Keep up your current activity level.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Button(
+                            onClick = { /* Navigate to details */ },
+                            modifier = Modifier.align(Alignment.End),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text("View Details")
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp)
+                        .padding(16.dp)
+                ) {
+                    val barColor = MaterialTheme.colorScheme.primaryContainer
+
+                    Text(
+                        text = "Weekly Activity",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        color = if (appState.isDarkMode) Color.White else Color.Black
                     )
 
-                    HealthMetricCard(
-                        iconResId = R.drawable.dist,
-                        value = "5.0",
-                        unit = "km",
-                    )
+                    val calendar = Calendar.getInstance().apply {
+                        add(Calendar.DAY_OF_YEAR, -6)
+                    }
+                    val dateFormat = SimpleDateFormat("MM/dd", Locale.getDefault())
+                    val dates = List(7) { i ->
+                        if (i > 0) calendar.add(Calendar.DAY_OF_YEAR, 1)
+                        dateFormat.format(calendar.time)
+                    }
 
-                    HealthMetricCard(
-                        iconResId = R.drawable.flame,
-                        value = "500",
-                        unit = "kcal",
-                    )
+                    val stepData = listOf(8000, 10000, 7500, 9000, 12000, 6000, 11000)
+                    val maxSteps = stepData.maxOrNull() ?: 1
+
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 32.dp)
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val barWidth = size.width / (dates.size * 1.8f)
+
+                                dates.forEachIndexed { index, _ ->
+                                    val barHeight = (stepData[index].toFloat() / maxSteps) * size.height
+
+                                    drawRoundRect(
+                                        color = barColor,
+                                        topLeft = Offset(
+                                            x = (index + 0.2f) * (size.width / dates.size),
+                                            y = size.height - barHeight
+                                        ),
+                                        size = Size(barWidth, barHeight),
+                                        cornerRadius = CornerRadius(4f)
+                                    )
+                                }
+                            }
+                        }
+
+                        val dateBoxWidth = remember { 1f / (dates.size * 1.8f) }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(28.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            dates.forEach { date ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(dateBoxWidth)
+                                        .padding(top = 4.dp),
+                                    contentAlignment = Alignment.TopCenter
+                                ) {
+                                    Text(
+                                        text = date,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (appState.isDarkMode) Color.White else Color.Black
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
+    val stepSensor = remember { sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) }
+
+    val sensorListener = remember {
+        object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                event?.let {
+                    if (it.sensor.type == Sensor.TYPE_STEP_COUNTER) {
+                        appState.stepCount = it.values[0].toInt()
+                    }
+                }
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+    }
+
+    DisposableEffect(sensorManager, stepSensor) {
+        stepSensor?.let {
+            sensorManager.registerListener(
+                sensorListener,
+                it,
+                SensorManager.SENSOR_DELAY_NORMAL
+            )
+        }
+        onDispose {
+            sensorManager.unregisterListener(sensorListener)
         }
     }
 }
@@ -106,7 +287,6 @@ fun HealthMetricCard(iconResId: Int, value: String, unit: String) {
                 color = backgroundColor,
                 shape = MaterialTheme.shapes.medium
             )
-//            .padding(16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -119,19 +299,26 @@ fun HealthMetricCard(iconResId: Int, value: String, unit: String) {
                 modifier = Modifier.size(30.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                    text = value,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = textColor,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = unit,
-                style = MaterialTheme.typography.bodyMedium,
-                color = textColor
-            )
+            Box {
+                Row (
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = textColor,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = unit,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+            }
         }
     }
 }
