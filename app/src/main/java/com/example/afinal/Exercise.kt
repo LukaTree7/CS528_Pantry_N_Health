@@ -39,6 +39,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -78,7 +80,11 @@ fun ExerciseScreen() {
             },
             contentAlignment = Alignment.Center
         ) {
-            Column {
+            Column (
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceEvenly,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -92,7 +98,8 @@ fun ExerciseScreen() {
                         modifier = Modifier
                             .size(160.dp)
                             .clickable { println("Avatar clicked") }
-                            .padding(end = 16.dp)
+                            .padding(end = 16.dp),
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(
@@ -277,7 +284,7 @@ fun ExerciseScreen() {
 fun HealthMetricCard(iconResId: Int, value: String, unit: String) {
     val appState = LocalAppState.current
     val backgroundColor = if (appState.isDarkMode) Color.Black else Color.White
-    val textColor = if (appState.isDarkMode) Color.White else Color.Black
+    val textColor = MaterialTheme.colorScheme.primary
 
     Box(
         modifier = Modifier
@@ -296,7 +303,8 @@ fun HealthMetricCard(iconResId: Int, value: String, unit: String) {
             Image(
                 painter = painterResource(id = iconResId),
                 contentDescription = null,
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(30.dp),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Box {
