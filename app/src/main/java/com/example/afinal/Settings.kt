@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
@@ -36,9 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
 @Composable
@@ -68,8 +69,9 @@ fun SettingScreen(navController: NavHostController) {
                     painter = painterResource(id = R.drawable.avatar),
                     contentDescription = "User Avatar",
                     modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
+                        .size(appState.fontSize.dp * 5)
+                        .clip(CircleShape),
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -77,6 +79,7 @@ fun SettingScreen(navController: NavHostController) {
                 SettingButton(
                     icon = Icons.Default.Person,
                     text = "Information",
+                    fontSize = appState.fontSize,
                     onClick = { }
                 )
 
@@ -85,6 +88,7 @@ fun SettingScreen(navController: NavHostController) {
                 SettingButton(
                     icon = Icons.Default.Notifications,
                     text = "Notifications",
+                    fontSize = appState.fontSize,
                     onClick = { }
                 )
 
@@ -93,6 +97,7 @@ fun SettingScreen(navController: NavHostController) {
                 SettingButton(
                     icon = Icons.Default.Lock,
                     text = "Password",
+                    fontSize = appState.fontSize,
                     onClick = { }
                 )
 
@@ -101,13 +106,14 @@ fun SettingScreen(navController: NavHostController) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height((10 + appState.fontSize * 2.5).dp)
                         .background(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             shape = MaterialTheme.shapes.medium
                         )
                         .clip(MaterialTheme.shapes.medium)
                         .clickable { appState.toggleDarkMode() }
+                        .padding(10.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -115,16 +121,18 @@ fun SettingScreen(navController: NavHostController) {
                             .fillMaxSize()
                             .padding(horizontal = 16.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Night Mode",
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onBackground
+                        Image(
+                            painter = painterResource(id = R.drawable.dark_mode),
+                            contentDescription = "Dark Mode",
+                            modifier = Modifier
+                                .size(appState.fontSize.dp)
+                                .clip(CircleShape),
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
                             text = "Night Mode",
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Spacer(modifier = Modifier.weight(1f))
@@ -146,11 +154,12 @@ fun SettingScreen(navController: NavHostController) {
                             shape = MaterialTheme.shapes.medium
                         )
                         .clip(MaterialTheme.shapes.medium)
+                        .padding(10.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalArrangement = Arrangement.Top
                     ) {
                         Row(
@@ -158,22 +167,24 @@ fun SettingScreen(navController: NavHostController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Font Size",
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onBackground
+                            Image(
+                                painter = painterResource(id = R.drawable.text_field),
+                                contentDescription = "User Avatar",
+                                modifier = Modifier
+                                    .size(appState.fontSize.dp)
+                                    .clip(CircleShape),
+                                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 text = "Font Size",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
                                 text = "${appState.fontSize.toInt()}sp",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                         }
@@ -193,6 +204,7 @@ fun SettingScreen(navController: NavHostController) {
                 SettingButton(
                     icon = Icons.Default.ExitToApp,
                     text = "Logout",
+                    fontSize = appState.fontSize,
                     onClick = { navController.navigate("login") }
                 )
             }
@@ -201,12 +213,17 @@ fun SettingScreen(navController: NavHostController) {
 }
 
 @Composable
-fun SettingButton(icon: ImageVector, text: String, onClick: () -> Unit) {
+fun SettingButton(
+    icon: ImageVector,
+    text: String,
+    fontSize: Float,
+    onClick: () -> Unit
+) {
     Button(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .height((10 + fontSize * 2.5).dp),
         shape = MaterialTheme.shapes.medium,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -220,13 +237,13 @@ fun SettingButton(icon: ImageVector, text: String, onClick: () -> Unit) {
             Icon(
                 imageVector = icon,
                 contentDescription = text,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(fontSize.dp),
                 tint = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = fontSize.sp),
                 color = MaterialTheme.colorScheme.onBackground
             )
         }

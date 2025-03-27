@@ -7,13 +7,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -25,6 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -56,8 +59,7 @@ fun MainApp(navController: NavHostController) {
     val isDarkMode = appState.isDarkMode
 
     Scaffold(
-        modifier = Modifier.background(
-            if (isDarkMode) Color.Black else Color.White),
+        modifier = Modifier.background(if (isDarkMode) Color.Black else Color.White),
         containerColor = if (isDarkMode) Color.Black else Color.White,
         bottomBar = {
             if (currentRoute in listOf(
@@ -100,25 +102,38 @@ fun BottomNavigationBar(navController: NavHostController) {
 
     val appState = LocalAppState.current
     val isDarkMode = appState.isDarkMode
+    val fontSize = appState.fontSize
 
     NavigationBar(
-        modifier = Modifier.background(
-            if (isDarkMode) Color.DarkGray else Color.LightGray
-        ),
+        modifier = Modifier.background(if (isDarkMode) Color.DarkGray else Color.LightGray),
         containerColor = if (isDarkMode) Color.DarkGray else Color.LightGray
     ) {
         items.forEach { screen ->
             NavigationBarItem(
                 icon = {
-                    Icon(
-                        imageVector = screen.icon,
-                        contentDescription = screen.route,
-                        tint = if (isDarkMode) Color.White else Color.Black
-                    )
+                    when {
+                        screen.iconVector != null -> {
+                            Icon(
+                                imageVector = screen.iconVector,
+                                contentDescription = screen.route,
+                                modifier = Modifier.size(appState.fontSize.dp + 5.dp),
+                                tint = if (isDarkMode) Color.White else Color.Black
+                            )
+                        }
+                        screen.iconResId != null -> {
+                            Icon(
+                                painter = painterResource(id = screen.iconResId),
+                                contentDescription = screen.route,
+                                modifier = Modifier.size(appState.fontSize.dp + 5.dp),
+                                tint = if (isDarkMode) Color.White else Color.Black
+                            )
+                        }
+                    }
                 },
                 label = {
                     Text(
                         text = screen.route,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = (fontSize - 5).sp),
                         color = if (isDarkMode) Color.White else Color.Black
                     )
                 },
@@ -137,10 +152,10 @@ fun BottomNavigationBar(navController: NavHostController) {
     }
 }
 
-sealed class Screen(val route: String, val icon: ImageVector) {
-    object Exercise : Screen("Exercise", Icons.Default.Home)
-    object Search : Screen("Pantry", Icons.Default.CheckCircle)
-    object Notifications : Screen("Classify", Icons.Default.Face)
-    object Recipe : Screen("Recipe", Icons.Default.Menu)
-    object Profile : Screen("Settings", Icons.Default.Settings)
+sealed class Screen(val route: String, val iconResId: Int? = null, val iconVector: ImageVector? = null) {
+    object Exercise : Screen("Exercise", iconVector = Icons.Default.Home)
+    object Search : Screen("Pantry", iconVector = Icons.Rounded.ShoppingCart)
+    object Notifications : Screen("Classify", iconResId = R.drawable.flaky)
+    object Recipe : Screen("Recipe", iconResId = R.drawable.cook)
+    object Profile : Screen("Settings", iconVector = Icons.Default.Settings)
 }
