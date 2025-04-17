@@ -16,11 +16,18 @@ class AppState {
 
     var stepCount by mutableStateOf(0)
 
+    var username by mutableStateOf("")
+        private set
+
     fun toggleDarkMode() {
         isDarkMode = !isDarkMode
     }
 
     fun updateFontSize(newSize: Float) {
         fontSize = newSize
+    }
+
+    fun updateUsername(newUsername: String) {
+        username = newUsername
     }
 }
