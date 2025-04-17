@@ -16,21 +16,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,13 +47,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavHostController
 
 @Composable
 fun SettingScreen(navController: NavHostController) {
     val appState = LocalAppState.current
+
+    // Add these state variables
+    var showUserInfoDialog by remember { mutableStateOf(false) }
+    var height by remember { mutableStateOf("") }
+    var weight by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
 
     MaterialTheme(
         colorScheme = if (appState.isDarkMode) darkColorScheme() else lightColorScheme()
@@ -69,36 +88,16 @@ fun SettingScreen(navController: NavHostController) {
                     painter = painterResource(id = R.drawable.avatar),
                     contentDescription = "User Avatar",
                     modifier = Modifier
-                        .size(appState.fontSize.dp * 5)
-                        .clip(CircleShape),
+                        .size(160.dp)
+                        .clickable {
+                            if (appState.username.isEmpty()) {
+                                navController.navigate("login")
+                            } else {
+                                showUserInfoDialog = true
+                            }
+                        }
+                        .padding(end = 16.dp),
                     colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                SettingButton(
-                    icon = Icons.Default.Person,
-                    text = "Information",
-                    fontSize = appState.fontSize,
-                    onClick = { }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SettingButton(
-                    icon = Icons.Default.Notifications,
-                    text = "Notifications",
-                    fontSize = appState.fontSize,
-                    onClick = { }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SettingButton(
-                    icon = Icons.Default.Lock,
-                    text = "Password",
-                    fontSize = appState.fontSize,
-                    onClick = { }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -199,14 +198,126 @@ fun SettingScreen(navController: NavHostController) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                if (appState.username.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                SettingButton(
-                    icon = Icons.Default.ExitToApp,
-                    text = "Logout",
-                    fontSize = appState.fontSize,
-                    onClick = { navController.navigate("login") }
-                )
+                    SettingButton(
+                        icon = Icons.Default.Lock,
+                        text = "Password",
+                        fontSize = appState.fontSize,
+                        onClick = { }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SettingButton(
+                        icon = Icons.Default.ExitToApp,
+                        text = "Logout",
+                        fontSize = appState.fontSize,
+                        onClick = { navController.navigate("login") }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SettingButton(
+                        icon = Icons.Default.Delete,
+                        text = "Delete Account",
+                        fontSize = appState.fontSize,
+                        onClick = { }
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SettingButton(
+                        icon = Icons.Default.Person,
+                        text = "Login",
+                        fontSize = appState.fontSize,
+                        onClick = { navController.navigate("login") }
+                    )
+                }
+            }
+
+            if (showUserInfoDialog) {
+                Dialog(
+                    onDismissRequest = { showUserInfoDialog = false },
+                    properties = DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                text = "Edit Profile Information",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            OutlinedTextField(
+                                value = height,
+                                onValueChange = { height = it },
+                                label = { Text("Height (cm)") },
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    keyboardType = KeyboardType.Number
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = weight,
+                                onValueChange = { weight = it },
+                                label = { Text("Weight (kg)") },
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    keyboardType = KeyboardType.Number
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = age,
+                                onValueChange = { age = it },
+                                label = { Text("Age") },
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                    keyboardType = KeyboardType.Number
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Button(
+                                    onClick = { showUserInfoDialog = false },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Text("Cancel")
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Button(
+                                    onClick = {
+                                        // Save the information here
+                                        showUserInfoDialog = false
+                                    }
+                                ) {
+                                    Text("OK")
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
