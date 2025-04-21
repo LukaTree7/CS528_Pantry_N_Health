@@ -8,8 +8,8 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [FoodItem::class, Login::class],
-    version = 2,
-    exportSchema = true
+    version = 3,
+    exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class FoodDatabase : RoomDatabase() {
@@ -21,18 +21,12 @@ abstract class FoodDatabase : RoomDatabase() {
         private var INSTANCE: FoodDatabase? = null
 
         fun getDatabase(context: Context): FoodDatabase {
-            val dbFile = context.getDatabasePath("food_database")
-            if (!dbFile.exists()) {
-                context.deleteDatabase("food_database")
-            }
-
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     FoodDatabase::class.java,
                     "food_database"
                 )
-                    .createFromAsset("database/food_database.db")
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
