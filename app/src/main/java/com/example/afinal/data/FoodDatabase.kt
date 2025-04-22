@@ -8,8 +8,8 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [FoodItem::class, Login::class],
-    version = 3,
-    exportSchema = false
+    version = 4,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class FoodDatabase : RoomDatabase() {

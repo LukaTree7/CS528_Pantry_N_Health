@@ -33,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -67,7 +68,8 @@ class MainActivity : ComponentActivity() {
         scheduleExpiryCheck()
 
         setContent {
-            val appState = remember { AppState() }
+            val authViewModel: AuthViewModel = viewModel()
+            val appState = remember { AppState(authViewModel) }
             CompositionLocalProvider(LocalAppState provides appState) {
                 FinalTheme {
                     val navController = rememberNavController()
@@ -140,7 +142,7 @@ fun MainApp(navController: NavHostController) {
             startDestination = Screen.Exercise.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Exercise.route) { ExerciseScreen() }
+            composable(Screen.Exercise.route) { ExerciseScreen(navController = navController) }
             composable(Screen.Search.route) { BarcodeScreen() }
             composable(Screen.Notifications.route) { ClassifyScreen() }
             composable(Screen.Recipe.route) { RecipeScreen() }
