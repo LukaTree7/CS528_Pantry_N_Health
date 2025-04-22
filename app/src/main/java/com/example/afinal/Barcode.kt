@@ -1,6 +1,7 @@
 package com.example.afinal
 
 import LocalAppState
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -13,8 +14,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.afinal.data.FoodItem
+import com.example.afinal.worker.ExpiryCheckWorker
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -24,7 +31,6 @@ fun BarcodeScreen() {
     val appState = LocalAppState.current
     val context = LocalContext.current
 
-    // Initialize ViewModel
     val foodViewModel: FoodViewModel = viewModel(
         factory = FoodViewModelFactory(context.applicationContext as android.app.Application)
     )
@@ -91,6 +97,42 @@ fun BarcodeScreen() {
                     ) {
                         Text("Add item")
                     }
+                }
+                Button(
+                    onClick = {
+                        WorkManager.getInstance(context)
+                            .enqueueUniqueWork(
+                                "manual_expiry_check",
+                                ExistingWorkPolicy.REPLACE,
+                                OneTimeWorkRequestBuilder<ExpiryCheckWorker>().build()
+                            )
+                    },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Check Expiring Items")
+                }
+                Button(
+                    onClick = {
+                        val notification = NotificationCompat.Builder(context, "expiry_notification_channel")
+                            .setSmallIcon(R.drawable.ic_notification)
+                            .setContentTitle("Test Notification")
+                            .setContentText("This is a test notification")
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .setAutoCancel(true)
+                            .build()
+
+                        with(NotificationManagerCompat.from(context)) {
+                            try {
+                                notify(100, notification)
+                            } catch (e: SecurityException) {
+                                Log.e("Notification", "Permission denied", e)
+                                // Handle permission not granted
+                            }
+                        }
+                    },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text("Test Notification")
                 }
 
                 if (foodItems.isNotEmpty()) {
@@ -267,7 +309,6 @@ fun BarcodeScreen() {
 
                             val expiryDate = Date(System.currentTimeMillis() + days * 24 * 60 * 60 * 1000L)
 
-                            // Add to database
                             foodViewModel.addFoodItem(
                                 name = itemName,
                                 barcode = scannedBarcode,
@@ -348,6 +389,7 @@ fun BarcodeScreen() {
                 }
             )
         }
+
 
         if (showDeleteConfirmation && selectedFoodItem != null) {
             AlertDialog(

@@ -28,6 +28,9 @@ interface FoodItemDao {
     @Delete
     suspend fun deleteFoodItem(foodItem: FoodItem)
 
+    @Query("SELECT * FROM food_items")
+    suspend fun getAllFoodItemsList(): List<FoodItem>
+
     @Query("SELECT * FROM food_items WHERE name LIKE '%' || :searchQuery || '%'")
     fun searchFoodItems(searchQuery: String): Flow<List<FoodItem>>
 }
