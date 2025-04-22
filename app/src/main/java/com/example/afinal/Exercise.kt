@@ -2,6 +2,7 @@ package com.example.afinal
 
 import LocalAppState
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -35,6 +36,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -61,15 +66,17 @@ import java.util.Locale
 
 @SuppressLint("DefaultLocale")
 @Composable
-fun ExerciseScreen() {
+fun ExerciseScreen(
+    navController: NavHostController
+) {
     val appState = LocalAppState.current
     val context = LocalContext.current
 
     // Add these state variables
     var showUserInfoDialog by remember { mutableStateOf(false) }
-    var height by remember { mutableStateOf("") }
-    var weight by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
+    var height by remember { mutableStateOf(appState.height.ifBlank { "" }) }
+    var weight by remember { mutableStateOf(appState.weight.ifBlank { "" }) }
+    var age by remember { mutableStateOf(appState.age.ifBlank { "" }) }
 
     // Calculate derived metrics
     val distanceKm = remember(appState.stepCount) {
@@ -78,6 +85,23 @@ fun ExerciseScreen() {
 
     val caloriesBurned = remember(appState.stepCount) {
         String.format("%.1f", appState.stepCount * 0.04)
+    }
+
+    val viewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(LocalContext.current.applicationContext as Application)
+    )
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(context.applicationContext as Application)
+    )
+    val currentAccount by authViewModel.currentAccount.collectAsStateWithLifecycle()
+
+    LaunchedEffect(currentAccount) {
+        currentAccount?.let { account ->
+            appState.username = account.username
+            account.height?.let { height = it.toString() }
+            account.weight?.let { weight = it.toString() }
+            account.age?.let { age = it.toString() }
+        }
     }
 
     MaterialTheme(
@@ -114,7 +138,11 @@ fun ExerciseScreen() {
                         contentDescription = "User Avatar",
                         modifier = Modifier
                             .size(160.dp)
-                            .clickable { showUserInfoDialog = true }
+                            .clickable {
+                                if (currentAccount != null) {
+                                    showUserInfoDialog = true
+                                }
+                            }
                             .padding(end = 16.dp),
                         colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
                     )
@@ -163,24 +191,52 @@ fun ExerciseScreen() {
                             )
                         )
 
-                        Text(
-                            text = "Walking 8,000 steps daily improves cardiovascular health. Keep up your current activity level.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        if( currentAccount != null ) {
+                            if( appState.height.isNotEmpty() && appState.weight.isNotEmpty() && appState.age.isNotEmpty()) {
+                                Text(
+                                    text = "Every step you take brings you closer to your goal. Aim for 8,000 steps today — it's not just about walking, it's about creating a healthier, stronger you. Keep moving, stay motivated, and remember that progress, no matter how small, is still progress!",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Button(
+                                    onClick = {  },
+                                    modifier = Modifier.align(Alignment.End),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text("Fighting!")
+                                }
+                            } else {
+                                Text(
+                                    text = "You haven't filled personal information yet. Please fill the following table first to create your personal exercise plan.",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
 
-                        Text(
-                            text = "Walking 8,000 steps daily improves cardiovascular health. Keep up your current activity level.",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = (appState.fontSize - 5).sp),
-                        )
-
-                        Button(
-                            onClick = { /* Navigate to details */ },
-                            modifier = Modifier.align(Alignment.End),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
+                                Button(
+                                    onClick = { showUserInfoDialog = true },
+                                    modifier = Modifier.align(Alignment.End),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text("Fill")
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = "You haven't logged in yet. Please login first to create your personal exercise plan.",
+                                style = MaterialTheme.typography.bodyMedium
                             )
-                        ) {
-                            Text("View Details")
+
+                            Button(
+                                onClick = { navController.navigate("login") },
+                                modifier = Modifier.align(Alignment.End),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Text("Login")
+                            }
                         }
                     }
                 }
@@ -337,8 +393,17 @@ fun ExerciseScreen() {
 
                                 Button(
                                     onClick = {
-                                        // Save the information here
+                                        viewModel.updateProfile(
+                                            height = height.toIntOrNull(),
+                                            weight = weight.toIntOrNull(),
+                                            age = age.toIntOrNull()
+                                        )
+
                                         showUserInfoDialog = false
+
+                                        appState.height = height
+                                        appState.weight = weight
+                                        appState.age = age
                                     }
                                 ) {
                                     Text("OK")

@@ -2,22 +2,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.example.afinal.AuthViewModel
 
 val LocalAppState = staticCompositionLocalOf<AppState> {
     error("No AppState provided!")
 }
 
-class AppState {
+class AppState(authViewModel: AuthViewModel) {
     var isDarkMode by mutableStateOf(false)
         private set
 
     var fontSize by mutableStateOf(16f)
-        private set
 
     var stepCount by mutableStateOf(0)
 
     var username by mutableStateOf("")
-        private set
+    var height by mutableStateOf("")
+    var weight by mutableStateOf("")
+    var age by mutableStateOf("")
 
     fun toggleDarkMode() {
         isDarkMode = !isDarkMode
@@ -27,7 +29,10 @@ class AppState {
         fontSize = newSize
     }
 
-    fun updateUsername(newUsername: String) {
-        username = newUsername
+    fun resetUserInfo() {
+        username = ""
+        height = ""
+        weight = ""
+        age = ""
     }
 }
