@@ -2,9 +2,13 @@ package com.example.afinal
 
 import AppState
 import LocalAppState
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,18 +32,44 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.example.afinal.notification.NotificationHelper
 import com.example.afinal.ui.theme.FinalTheme
+import com.example.afinal.worker.ExpiryCheckWorker
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
+    // Add permission request launcher
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        // Optional: handle permission result
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Create notification channel
+        NotificationHelper.createNotificationChannel(this)
+
+        // Request notification permission for Android 13+
+        requestNotificationPermission()
+
+        // Schedule expiry check worker
+        scheduleExpiryCheck()
+
         setContent {
-            val appState = remember { AppState() }
+            val authViewModel: AuthViewModel = viewModel()
+            val appState = remember { AppState(authViewModel) }
             CompositionLocalProvider(LocalAppState provides appState) {
                 FinalTheme {
                     val navController = rememberNavController()
@@ -48,10 +78,45 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    // Method to request notification permission
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Permission already granted
+                }
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    // Optional: explain why permission is needed
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                else -> {
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+    }
+
+    // Method to schedule the expiry check worker
+    private fun scheduleExpiryCheck() {
+        val expiryCheckRequest = PeriodicWorkRequestBuilder<ExpiryCheckWorker>(
+            1, TimeUnit.DAYS
+        ).build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "expiry_check",
+            ExistingPeriodicWorkPolicy.KEEP,
+            expiryCheckRequest
+        )
+    }
 }
 
 @Composable
 fun MainApp(navController: NavHostController) {
+    // Existing code remains unchanged
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -77,7 +142,7 @@ fun MainApp(navController: NavHostController) {
             startDestination = Screen.Exercise.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Exercise.route) { ExerciseScreen() }
+            composable(Screen.Exercise.route) { ExerciseScreen(navController = navController) }
             composable(Screen.Search.route) { BarcodeScreen() }
             composable(Screen.Notifications.route) { ClassifyScreen() }
             composable(Screen.Recipe.route) { RecipeScreen() }
@@ -89,6 +154,7 @@ fun MainApp(navController: NavHostController) {
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
+    // Existing code remains unchanged
     val items = listOf(
         Screen.Exercise,
         Screen.Search,
