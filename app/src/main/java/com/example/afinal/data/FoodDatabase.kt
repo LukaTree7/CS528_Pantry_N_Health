@@ -7,14 +7,15 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [FoodItem::class, Login::class],
-    version = 4,
+    entities = [FoodItem::class, Login::class, Steps::class],
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class FoodDatabase : RoomDatabase() {
     abstract fun foodItemDao(): FoodItemDao
     abstract fun loginDao(): LoginDao
+    abstract fun stepsDao(): StepsDao
 
     companion object {
         @Volatile

@@ -1,5 +1,6 @@
 package com.example.afinal
 
+import AppState
 import LocalAppState
 import android.annotation.SuppressLint
 import android.app.Application
@@ -37,6 +38,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +50,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,27 +59,52 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
+import java.time.Duration
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
-
+import java.util.concurrent.TimeUnit
 
 @SuppressLint("DefaultLocale")
 @Composable
 fun ExerciseScreen(
     navController: NavHostController
 ) {
-    val appState = LocalAppState.current
     val context = LocalContext.current
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(context.applicationContext as Application)
+    )
+    val currentAccount by authViewModel.currentAccount.collectAsStateWithLifecycle()
 
-    // Add these state variables
+    val appState = remember { AppState(authViewModel) }
+    val application = context.applicationContext as Application
+
+    val viewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(LocalContext.current.applicationContext as Application)
+    )
+
+    val stepsViewModel: StepsViewModel = viewModel(
+        factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application)
+    )
+
     var showUserInfoDialog by remember { mutableStateOf(false) }
-    var height by remember { mutableStateOf(appState.height.ifBlank { "" }) }
-    var weight by remember { mutableStateOf(appState.weight.ifBlank { "" }) }
-    var age by remember { mutableStateOf(appState.age.ifBlank { "" }) }
+    var height by remember { mutableStateOf("") }
+    var weight by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
 
     // Calculate derived metrics
     val distanceKm = remember(appState.stepCount) {
@@ -87,14 +115,6 @@ fun ExerciseScreen(
         String.format("%.1f", appState.stepCount * 0.04)
     }
 
-    val viewModel: AuthViewModel = viewModel(
-        factory = AuthViewModelFactory(LocalContext.current.applicationContext as Application)
-    )
-    val authViewModel: AuthViewModel = viewModel(
-        factory = AuthViewModelFactory(context.applicationContext as Application)
-    )
-    val currentAccount by authViewModel.currentAccount.collectAsStateWithLifecycle()
-
     LaunchedEffect(currentAccount) {
         currentAccount?.let { account ->
             appState.username = account.username
@@ -102,6 +122,35 @@ fun ExerciseScreen(
             account.weight?.let { weight = it.toString() }
             account.age?.let { age = it.toString() }
         }
+    }
+
+    LaunchedEffect(currentAccount, appState.stepCount) {
+        while (true) {
+            delay(60_000L)
+
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            val currentDate = LocalDate.now().format(formatter)
+
+            currentAccount?.let {
+                stepsViewModel.saveSteps(
+                    username = it.toString(),
+                    date = currentDate,
+                    steps = appState.stepCount
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val workRequest = PeriodicWorkRequestBuilder<ResetStepWorker>(1, TimeUnit.DAYS)
+            .setInitialDelay(calculateInitialDelayToSixAM(), TimeUnit.MILLISECONDS)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "ResetStepWorker",
+            ExistingPeriodicWorkPolicy.REPLACE,
+            workRequest
+        )
     }
 
     MaterialTheme(
@@ -241,85 +290,12 @@ fun ExerciseScreen(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(280.dp)
-                        .padding(16.dp)
-                ) {
-                    val barColor = MaterialTheme.colorScheme.primaryContainer
+                WeeklyStepsChart(
+                    stepsViewModel = viewModel(),
+                    username = appState.username,
+                    appState = appState
+                )
 
-                    Text(
-                        text = "Weekly Activity",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
-                        modifier = Modifier.align(Alignment.TopCenter),
-                        color = if (appState.isDarkMode) Color.White else Color.Black
-                    )
-
-                    val calendar = Calendar.getInstance().apply {
-                        add(Calendar.DAY_OF_YEAR, -6)
-                    }
-                    val dateFormat = SimpleDateFormat("MM/dd", Locale.getDefault())
-                    val dates = List(7) { i ->
-                        if (i > 0) calendar.add(Calendar.DAY_OF_YEAR, 1)
-                        dateFormat.format(calendar.time)
-                    }
-
-                    val stepData = listOf(8000, 10000, 7500, 9000, 12000, 6000, 11000)
-                    val maxSteps = stepData.maxOrNull() ?: 1
-
-                    Column(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(top = 32.dp)
-                        ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val barWidth = size.width / (dates.size * 1.8f)
-
-                                dates.forEachIndexed { index, _ ->
-                                    val barHeight = (stepData[index].toFloat() / maxSteps) * size.height
-
-                                    drawRoundRect(
-                                        color = barColor,
-                                        topLeft = Offset(
-                                            x = (index + 0.2f) * (size.width / dates.size),
-                                            y = size.height - barHeight
-                                        ),
-                                        size = Size(barWidth, barHeight),
-                                        cornerRadius = CornerRadius(4f)
-                                    )
-                                }
-                            }
-                        }
-
-                        val dateBoxWidth = remember { 1f / (dates.size * 1.8f) }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            dates.forEach { date ->
-                                Box(
-                                    modifier = Modifier
-                                        .weight(dateBoxWidth)
-                                        .padding(top = 4.dp),
-                                    contentAlignment = Alignment.TopCenter
-                                ) {
-                                    Text(
-                                        text = date,
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
-                                        color = if (appState.isDarkMode) Color.White else Color.Black
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
             }
 
             if (showUserInfoDialog) {
@@ -496,4 +472,137 @@ fun HealthMetricCard(iconResId: Int, value: String, unit: String) {
             }
         }
     }
+}
+
+@Composable
+fun WeeklyStepsChart(
+    stepsViewModel: StepsViewModel,
+    username: String,
+    appState: AppState
+) {
+    val calendar = Calendar.getInstance()
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val labelFormat = SimpleDateFormat("MM/dd", Locale.getDefault())
+
+    val dates = remember {
+        (0..6).map {
+            calendar.apply { time = Date(); add(Calendar.DAY_OF_YEAR, it - 6) }
+            dateFormat.format(calendar.time)
+        }
+    }
+
+    val labels = dates.map {
+        val parsed = dateFormat.parse(it)
+        labelFormat.format(parsed ?: Date())
+    }
+
+    val stepsList by stepsViewModel.getAllSteps(username).collectAsState(initial = emptyList())
+
+    val stepData = dates.map { date ->
+        stepsList.find { it.date == date }?.steps ?: 0
+    }
+
+    val maxSteps = stepData.maxOrNull() ?: 1
+    val maxIndex = stepData.indexOf(maxSteps)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(280.dp)
+            .padding(16.dp)
+    ) {
+        val barColor = MaterialTheme.colorScheme.primaryContainer
+
+        Text(
+            text = "Weekly Activity",
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
+            modifier = Modifier.align(Alignment.TopCenter),
+            color = if (appState.isDarkMode) Color.White else Color.Black
+        )
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 32.dp)
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val barWidth = size.width / (dates.size * 1.8f)
+
+                    stepData.forEachIndexed { index, steps ->
+                        val barHeight = (steps.toFloat() / maxSteps) * size.height
+                        val barX = (index + 0.2f) * (size.width / dates.size)
+                        val barY = size.height - barHeight
+
+                        drawRoundRect(
+                            color = barColor,
+                            topLeft = Offset(barX, barY),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(4f)
+                        )
+
+                        if (index == maxIndex) {
+                            drawContext.canvas.nativeCanvas.drawText(
+                                "$steps",
+                                barX + barWidth / 2,
+                                barY - 8,
+                                android.graphics.Paint().apply {
+                                    textAlign = android.graphics.Paint.Align.CENTER
+                                    textSize = 32f
+                                    color = android.graphics.Color.BLACK
+                                    isFakeBoldText = true
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            val dateBoxWidth = remember { 1f / (labels.size * 1.8f) }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                labels.forEach { label ->
+                    Box(
+                        modifier = Modifier
+                            .weight(dateBoxWidth)
+                            .padding(top = 4.dp),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
+                            color = if (appState.isDarkMode) Color.White else Color.Black
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+class ResetStepWorker(appContext: Context, workerParams: WorkerParameters) :
+    Worker(appContext, workerParams) {
+    override fun doWork(): Result {
+        val sharedPref = applicationContext.getSharedPreferences("StepData", Context.MODE_PRIVATE)
+        sharedPref.edit().putInt("steps", 0).apply()
+        return Result.success()
+    }
+}
+
+fun calculateInitialDelayToSixAM(): Long {
+    val now = LocalDateTime.now()
+    val targetTime = now.withHour(6).withMinute(0).withSecond(0).withNano(0)
+    val delay = if (now.isAfter(targetTime)) {
+        Duration.between(now, targetTime.plusDays(1))
+    } else {
+        Duration.between(now, targetTime)
+    }
+    return delay.toMillis()
 }
