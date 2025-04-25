@@ -47,6 +47,7 @@ import com.example.afinal.ui.theme.FinalTheme
 import com.example.afinal.worker.ExpiryCheckWorker
 import java.util.concurrent.TimeUnit
 
+
 class MainActivity : ComponentActivity() {
     // Add permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -143,7 +144,11 @@ fun MainApp(navController: NavHostController) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Exercise.route) { ExerciseScreen(navController = navController) }
-            composable(Screen.Search.route) { BarcodeScreen() }
+            composable(Screen.Search.route) {
+                EnsureCameraPermission {
+                    BarcodeScreen()
+                }
+            }
             composable(Screen.Notifications.route) { ClassifyScreen() }
             composable(Screen.Recipe.route) { RecipeScreen() }
             composable(Screen.Profile.route) { SettingScreen(navController = navController) }
