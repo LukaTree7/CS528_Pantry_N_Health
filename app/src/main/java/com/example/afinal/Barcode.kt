@@ -1,3 +1,4 @@
+
 package com.example.afinal
 
 import LocalAppState
@@ -25,6 +26,48 @@ import com.example.afinal.worker.ExpiryCheckWorker
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Date
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
+import androidx.core.content.ContextCompat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import com.example.afinal.data.RetrofitInstance
+
+
+@Composable
+fun EnsureCameraPermission(onGranted: @Composable () -> Unit) {
+    val context = LocalContext.current
+    var permissionGranted by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        permissionGranted = isGranted
+    }
+
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionGranted = true
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    if (permissionGranted) {
+        onGranted()
+    }
+}
+
+
 
 @Composable
 fun BarcodeScreen() {
@@ -241,28 +284,48 @@ fun BarcodeScreen() {
             AlertDialog(
                 onDismissRequest = { isScanning = false },
                 title = { Text("Scan Barcode") },
-                text = { Text("Simulating barcode scan...") },
-                confirmButton = {
-                    Button(onClick = {
-                        scannedBarcode = "123${(100000..999999).random()}"
-                        isScanning = false
+                text = {
+                    RealBarcodeScanner(
+                        onDetected = { barcode ->
+                            scannedBarcode = barcode
+                            isScanning = false
 
-                        scope.launch {
-                            val existingItem = foodViewModel.getFoodItemByBarcode(scannedBarcode!!)
-                            if (existingItem == null) {
-                                // Item not in database, show dialog to add details
-                                selectedFoodItem = null
-                                showAddDialog = true
-                            } else {
-                                // Item found - show notification
-                                selectedFoodItem = existingItem
-                                showEditDialog = true
+                            scope.launch {
+                                try {
+                                    val response = RetrofitInstance.api.getProduct(barcode)
+                                    val product = response.product
+
+                                    val name = product?.product_name ?: ""
+                                    val calories = product?.nutriments?.energy_kcal?.toInt() ?: 0
+
+                                    selectedFoodItem = FoodItem(
+                                        name = name,
+                                        barcode = barcode,
+                                        expiryDate = Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000L),
+                                        calories = calories
+                                    )
+
+                                    showAddDialog = true
+
+                                } catch (e: Exception) {
+                                    // Product not found or network error
+                                    selectedFoodItem = FoodItem(
+                                        name = "",
+                                        barcode = barcode,
+                                        expiryDate = Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000L),
+                                        calories = 0
+                                    )
+                                    showAddDialog = true
+                                }
                             }
                         }
-                    }) {
-                        Text("Simulate Scan")
-                    }
+
+
+
+
+                    )
                 },
+                confirmButton = {},
                 dismissButton = {
                     Button(onClick = { isScanning = false }) {
                         Text("Cancel")
@@ -272,8 +335,8 @@ fun BarcodeScreen() {
         }
 
         if (showAddDialog) {
-            var itemName by remember { mutableStateOf("") }
-            var caloriesText by remember { mutableStateOf("") }
+            var itemName by remember { mutableStateOf(selectedFoodItem?.name ?: "") }
+            var caloriesText by remember { mutableStateOf(selectedFoodItem?.calories?.toString() ?: "") }
             var expiryDays by remember { mutableStateOf("7") } // Default 7 days
 
             AlertDialog(
@@ -419,6 +482,44 @@ fun BarcodeScreen() {
     }
 }
 
+@Composable
+fun RealBarcodeScanner(onDetected: (String) -> Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val preview = remember { Preview.Builder().build() }
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+
+    val analyzer = remember {
+        ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build().apply {
+                setAnalyzer(ContextCompat.getMainExecutor(context), BarcodeAnalyzer(onDetected))
+            }
+    }
+
+    LaunchedEffect(Unit) {
+        val cameraProvider = cameraProviderFuture.get()
+        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+        cameraProvider.unbindAll()
+        cameraProvider.bindToLifecycle(
+            lifecycleOwner, cameraSelector, preview, analyzer
+        )
+    }
+
+    AndroidView(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp),
+        factory = { ctx ->
+            PreviewView(ctx).apply {
+                preview.setSurfaceProvider(this.surfaceProvider)
+            }
+        }
+    )
+}
+
+
 private fun formatDate(date: Date): String {
     val formatter = java.text.SimpleDateFormat("MM/dd/yyyy", java.util.Locale.getDefault())
     return formatter.format(date)
@@ -431,5 +532,61 @@ class FoodViewModelFactory(private val application: android.app.Application) : a
             return FoodViewModel(application) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+
+class BarcodeAnalyzer(
+    private val onBarcodeDetected: (String) -> Unit
+) : ImageAnalysis.Analyzer {
+    override fun analyze(imageProxy: ImageProxy) {
+        // Convert ImageProxy to NV21 byte array (common format for ML Kit)
+        val nv21Data = imageProxy.toNV21ByteArray()
+
+        // Create InputImage from the byte array
+        val image = InputImage.fromByteArray(
+            nv21Data,
+            imageProxy.width,
+            imageProxy.height,
+            imageProxy.imageInfo.rotationDegrees,
+            InputImage.IMAGE_FORMAT_NV21
+        )
+
+        val scanner = BarcodeScanning.getClient()
+        scanner.process(image)
+            .addOnSuccessListener { barcodes ->
+                for (barcode in barcodes) {
+                    barcode.rawValue?.let {
+                        onBarcodeDetected(it)
+                        imageProxy.close()
+                        return@addOnSuccessListener
+                    }
+                }
+                imageProxy.close()
+            }
+            .addOnFailureListener {
+                imageProxy.close()
+            }
+    }
+
+    private fun ImageProxy.toNV21ByteArray(): ByteArray {
+        val yBuffer = planes[0].buffer
+        val uBuffer = planes[1].buffer
+        val vBuffer = planes[2].buffer
+
+        val ySize = yBuffer.remaining()
+        val uSize = uBuffer.remaining()
+        val vSize = vBuffer.remaining()
+
+        val nv21 = ByteArray(ySize + uSize + vSize)
+
+        // Copy Y channel
+        yBuffer.get(nv21, 0, ySize)
+
+        // Copy VU channels (NV21 format expects VU, not UV)
+        vBuffer.get(nv21, ySize, vSize)
+        uBuffer.get(nv21, ySize + vSize, uSize)
+
+        return nv21
     }
 }
