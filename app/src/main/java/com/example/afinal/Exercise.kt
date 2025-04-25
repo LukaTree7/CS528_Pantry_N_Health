@@ -4,11 +4,16 @@ import AppState
 import LocalAppState
 import android.annotation.SuppressLint
 import android.app.Application
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -59,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,7 +74,15 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofenceStatusCodes
+import com.google.android.gms.location.GeofencingEvent
+import com.google.android.gms.location.GeofencingRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.text.SimpleDateFormat
 import java.time.Duration
 import java.time.LocalDate
@@ -82,7 +96,8 @@ import java.util.concurrent.TimeUnit
 @SuppressLint("DefaultLocale")
 @Composable
 fun ExerciseScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    geoviewModel: GeofenceViewModel = viewModel(factory = GeofenceViewModelFactory(LocalContext.current))
 ) {
     val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel(
@@ -113,6 +128,16 @@ fun ExerciseScreen(
 
     val caloriesBurned = remember(appState.stepCount) {
         String.format("%.1f", appState.stepCount * 0.04)
+    }
+
+    val visitPC by geoviewModel.visitPC.collectAsState()
+
+    // Add Geofence
+    LaunchedEffect(Unit) {
+        addGeofences(
+            context,
+            visitPC
+        )
     }
 
     LaunchedEffect(currentAccount) {
@@ -395,6 +420,10 @@ fun ExerciseScreen(
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     val stepSensor = remember { sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) }
 
+    if (stepSensor == null) {
+        Toast.makeText(context, "Step counter sensor not available!", Toast.LENGTH_SHORT).show()
+    }
+
     val sensorListener = remember {
         object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
@@ -605,4 +634,98 @@ fun calculateInitialDelayToSixAM(): Long {
         Duration.between(now, targetTime)
     }
     return delay.toMillis()
+}
+
+@SuppressLint("MissingPermission")
+private fun addGeofences(
+    context: Context,
+    visitPC: Float
+) {
+    val geofencingClient = LocationServices.getGeofencingClient(context)
+
+    val geofenceList = ArrayList<Geofence>()
+
+    // Price Chopper Geofence
+    val priceChopper = LatLng(42.27470, -71.80834)
+    geofenceList.add(
+        Geofence.Builder()
+            .setRequestId("PriceChopper")
+            .setCircularRegion(
+                priceChopper.latitude,
+                priceChopper.longitude,
+                50f
+            )
+            .setExpirationDuration(Geofence.NEVER_EXPIRE)
+            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_DWELL)
+            .setLoiteringDelay(5000)
+            .build()
+    )
+
+    val geofencingRequest = GeofencingRequest.Builder()
+        .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER or GeofencingRequest.INITIAL_TRIGGER_DWELL)
+        .addGeofences(geofenceList)
+        .build()
+
+    val geofencePendingIntent: PendingIntent by lazy {
+        val intent = Intent(context, GeofenceBroadcastReceiver::class.java)
+        PendingIntent.getBroadcast(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    geofencingClient.addGeofences(geofencingRequest, geofencePendingIntent).run {
+        addOnSuccessListener {
+            Toast.makeText(context, "Geofences added", Toast.LENGTH_SHORT).show()
+        }
+        addOnFailureListener {
+            Toast.makeText(context, "Failed to add geofences", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+class GeofenceViewModel(context: Context) : ViewModel() {
+    private val sharedPreferences = context.getSharedPreferences("GeofencePrefs", Context.MODE_PRIVATE)
+
+    private val _visitPC = MutableStateFlow(sharedPreferences.getFloat("visitPC", 0f))
+    val visitPC: StateFlow<Float> = _visitPC
+}
+
+class GeofenceBroadcastReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val geofencingEvent = GeofencingEvent.fromIntent(intent)
+        if (geofencingEvent != null) {
+            if (geofencingEvent.hasError()) {
+                val errorMessage = GeofenceStatusCodes.getStatusCodeString(geofencingEvent.errorCode)
+                Log.e("Geofence", errorMessage)
+                return
+            }
+        }
+
+        val geofenceTransition = geofencingEvent!!.geofenceTransition
+
+        when (geofenceTransition) {
+            Geofence.GEOFENCE_TRANSITION_ENTER, Geofence.GEOFENCE_TRANSITION_DWELL -> {
+                val triggeringGeofences = geofencingEvent.triggeringGeofences
+                triggeringGeofences?.forEach { geofence ->
+                    val newIntent = Intent("geofence_transition").apply {
+                        putExtra("location", geofence.requestId)
+                    }
+                    context.sendBroadcast(newIntent)
+                }
+            }
+        }
+    }
+}
+
+class GeofenceViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(GeofenceViewModel::class.java)) {
+            return GeofenceViewModel(context) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
 }
