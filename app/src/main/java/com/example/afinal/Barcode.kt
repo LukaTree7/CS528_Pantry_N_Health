@@ -1,4 +1,3 @@
-
 package com.example.afinal
 
 import LocalAppState
@@ -15,8 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -153,29 +150,6 @@ fun BarcodeScreen() {
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
                     Text("Check Expiring Items")
-                }
-                Button(
-                    onClick = {
-                        val notification = NotificationCompat.Builder(context, "expiry_notification_channel")
-                            .setSmallIcon(R.drawable.ic_notification)
-                            .setContentTitle("Test Notification")
-                            .setContentText("This is a test notification")
-                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                            .setAutoCancel(true)
-                            .build()
-
-                        with(NotificationManagerCompat.from(context)) {
-                            try {
-                                notify(100, notification)
-                            } catch (e: SecurityException) {
-                                Log.e("Notification", "Permission denied", e)
-                                // Handle permission not granted
-                            }
-                        }
-                    },
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Text("Test Notification")
                 }
 
                 if (foodItems.isNotEmpty()) {
@@ -319,10 +293,6 @@ fun BarcodeScreen() {
                                 }
                             }
                         }
-
-
-
-
                     )
                 },
                 confirmButton = {},
