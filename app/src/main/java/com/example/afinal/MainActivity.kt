@@ -133,7 +133,8 @@ fun MainApp(navController: NavHostController) {
                     Screen.Search.route,
                     Screen.Notifications.route,
                     Screen.Profile.route,
-                    Screen.Recipe.route)) {
+//                    Screen.Recipe.route
+            )) {
                 BottomNavigationBar(navController = navController)
             }
         }
@@ -150,7 +151,7 @@ fun MainApp(navController: NavHostController) {
                 }
             }
             composable(Screen.Notifications.route) { ClassifyScreen() }
-            composable(Screen.Recipe.route) { RecipeScreen() }
+//            composable(Screen.Recipe.route) { RecipeScreen() }
             composable(Screen.Profile.route) { SettingScreen(navController = navController) }
             composable("login") { LoginRegisterScreen(navController = navController) }
         }
@@ -164,7 +165,7 @@ fun BottomNavigationBar(navController: NavHostController) {
         Screen.Exercise,
         Screen.Search,
         Screen.Notifications,
-        Screen.Recipe,
+//        Screen.Recipe,
         Screen.Profile
     )
 
@@ -227,6 +228,6 @@ sealed class Screen(val route: String, val iconResId: Int? = null, val iconVecto
     object Exercise : Screen("Exercise", iconVector = Icons.Default.Home)
     object Search : Screen("Pantry", iconVector = Icons.Rounded.ShoppingCart)
     object Notifications : Screen("Classify", iconResId = R.drawable.flaky)
-    object Recipe : Screen("Recipe", iconResId = R.drawable.cook)
+//    object Recipe : Screen("Recipe", iconResId = R.drawable.cook)
     object Profile : Screen("Settings", iconVector = Icons.Default.Settings)
 }
