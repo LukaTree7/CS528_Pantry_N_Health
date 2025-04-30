@@ -1,11 +1,10 @@
 package com.example.afinal.data
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "steps")
+@Entity(tableName = "steps", primaryKeys = ["username", "date"])
 data class Steps(
-    @PrimaryKey val username: String,
+    val username: String,
     val date: String,
     val steps: Int
 )
