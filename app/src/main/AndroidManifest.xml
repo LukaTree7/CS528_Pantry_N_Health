@@ -39,7 +39,7 @@
         <!-- BroadcastReceiver for Geofencing -->
         <receiver
             android:name=".GeofenceBroadcastReceiver"
-            android:exported="true" />
+            android:exported="true"/>
 
     </application>
 

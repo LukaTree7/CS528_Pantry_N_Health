@@ -6,6 +6,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,25 +50,34 @@ import java.util.concurrent.TimeUnit
 
 
 class MainActivity : ComponentActivity() {
-    // Add permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        // Optional: handle permission result
+    }
+
+    private val requestLocationPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val backgroundLocationGranted = permissions[Manifest.permission.ACCESS_BACKGROUND_LOCATION] ?: false
+
+        if (fineLocationGranted) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (!backgroundLocationGranted) {
+                    Toast.makeText(this, "Please enable background location for full functionality.", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else {
+            Toast.makeText(this, "Location permission is required", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Create notification channel
         NotificationHelper.createNotificationChannel(this)
-
-        // Request notification permission for Android 13+
         requestNotificationPermission()
-
-        // Schedule expiry check worker
+        requestLocationPermissions()
         scheduleExpiryCheck()
-
         setContent {
             val authViewModel: AuthViewModel = viewModel()
             val appState = remember { AppState(authViewModel) }
@@ -80,7 +90,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Method to request notification permission
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             when {
@@ -88,10 +97,8 @@ class MainActivity : ComponentActivity() {
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    // Permission already granted
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // Optional: explain why permission is needed
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
                 else -> {
@@ -101,7 +108,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Method to schedule the expiry check worker
+    private fun requestLocationPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestLocationPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+
     private fun scheduleExpiryCheck() {
         val expiryCheckRequest = PeriodicWorkRequestBuilder<ExpiryCheckWorker>(
             1, TimeUnit.DAYS
