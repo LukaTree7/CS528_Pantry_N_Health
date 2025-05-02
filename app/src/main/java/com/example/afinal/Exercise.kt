@@ -158,7 +158,7 @@ fun ExerciseScreen(
 
             currentAccount?.let {
                 stepsViewModel.saveSteps(
-                    username = it.toString(),
+                    username = it.username,
                     date = currentDate,
                     steps = appState.stepCount
                 )
@@ -606,7 +606,7 @@ fun WeeklyStepsChart(
                     ) {
                         Text(
                             text = label,
-                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = appState.fontSize.sp),
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = (appState.fontSize-2).sp),
                             color = if (appState.isDarkMode) Color.White else Color.Black
                         )
                     }
@@ -646,7 +646,7 @@ private fun addGeofences(
     val geofenceList = ArrayList<Geofence>()
 
     // Price Chopper Geofence
-    val priceChopper = LatLng(42.27470, -71.80834)
+    val priceChopper = LatLng(42.27035, -71.82355)
     geofenceList.add(
         Geofence.Builder()
             .setRequestId("PriceChopper")
@@ -706,14 +706,21 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
         val geofenceTransition = geofencingEvent!!.geofenceTransition
 
+        Log.d("Geofence", "Broadcast received with transition: $geofenceTransition")
+
         when (geofenceTransition) {
             Geofence.GEOFENCE_TRANSITION_ENTER, Geofence.GEOFENCE_TRANSITION_DWELL -> {
                 val triggeringGeofences = geofencingEvent.triggeringGeofences
                 triggeringGeofences?.forEach { geofence ->
-                    val newIntent = Intent("geofence_transition").apply {
-                        putExtra("location", geofence.requestId)
+                    when (geofence.requestId) {
+                        "PriceChopper" -> {
+                            Toast.makeText(
+                                context,
+                                "You are approaching Price Chopper, it's time to get some fresh!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
-                    context.sendBroadcast(newIntent)
                 }
             }
         }
