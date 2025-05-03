@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -64,9 +65,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -83,6 +86,7 @@ import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Duration
 import java.time.LocalDate
@@ -116,6 +120,8 @@ fun ExerciseScreen(
         factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application)
     )
 
+    val visitPC by geoviewModel.visitPC.collectAsState()
+
     var showUserInfoDialog by remember { mutableStateOf(false) }
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
@@ -130,14 +136,34 @@ fun ExerciseScreen(
         String.format("%.1f", appState.stepCount * 0.04)
     }
 
-    val visitPC by geoviewModel.visitPC.collectAsState()
-
     // Add Geofence
     LaunchedEffect(Unit) {
         addGeofences(
             context,
             visitPC
         )
+    }
+
+    DisposableEffect(Unit) {
+        val broadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.getStringExtra("location")) {
+                    "PriceChopper" -> geoviewModel.incrementVisitPC()
+                }
+            }
+        }
+
+        val filter = IntentFilter("geofence_transition")
+        ContextCompat.registerReceiver(
+            context,
+            broadcastReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
+        onDispose {
+            context.unregisterReceiver(broadcastReceiver)
+        }
     }
 
     LaunchedEffect(currentAccount) {
@@ -211,7 +237,7 @@ fun ExerciseScreen(
                         painter = painterResource(id = R.drawable.avatar),
                         contentDescription = "User Avatar",
                         modifier = Modifier
-                            .size(160.dp)
+                            .size(140.dp)
                             .clickable {
                                 if (currentAccount != null) {
                                     showUserInfoDialog = true
@@ -646,7 +672,7 @@ private fun addGeofences(
     val geofenceList = ArrayList<Geofence>()
 
     // Price Chopper Geofence
-    val priceChopper = LatLng(42.27035, -71.82355)
+    val priceChopper = LatLng(42.27087, -71.81515)
     geofenceList.add(
         Geofence.Builder()
             .setRequestId("PriceChopper")
@@ -691,6 +717,13 @@ class GeofenceViewModel(context: Context) : ViewModel() {
 
     private val _visitPC = MutableStateFlow(sharedPreferences.getFloat("visitPC", 0f))
     val visitPC: StateFlow<Float> = _visitPC
+
+    fun incrementVisitPC() {
+        viewModelScope.launch {
+            _visitPC.value += 1f
+            sharedPreferences.edit().putFloat("visitPC", _visitPC.value).apply()
+        }
+    }
 }
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
@@ -704,7 +737,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             }
         }
 
-        val geofenceTransition = geofencingEvent!!.geofenceTransition
+        val geofenceTransition = geofencingEvent?.geofenceTransition
 
         Log.d("Geofence", "Broadcast received with transition: $geofenceTransition")
 
