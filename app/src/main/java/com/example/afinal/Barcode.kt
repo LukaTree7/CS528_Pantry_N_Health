@@ -210,7 +210,7 @@ fun BarcodeScreen() {
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "Expires: ${formatDate(item.expiryDate)}",
+                                            text = if (item.expiryDate.time < System.currentTimeMillis()) "Expired" else "Expires: ${formatDate(item.expiryDate)}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
