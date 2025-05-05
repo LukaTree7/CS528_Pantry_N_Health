@@ -36,4 +36,4 @@ Reference Materials:
 5. Used Assignment 3 step counter code and Google. (n.d.). SensorManager | Android Developers. Retrieved from https://developer.android.com/reference/android/hardware/SensorManager for exercise module
 6. Android Developers. (n.d.). Jetpack Compose. Retrieved from https://developer.android.com/jetpack/compose
 7. Android Developers. (n.d.). Room persistence library: Store and manage your app’s data. Retrieved from https://developer.android.com/jetpack/androidx/releases/room
-8. Used Assignment 2 : Face Detection code for classifier Module
+8. Used Assignment 2 : Face Detection code, https://github.com/zeeshannisar/COVID-19/blob/master/Implementations/dataset%2002/MobileNetV2-Transfer%20Learning-COVID19-dataset%2002.ipynb and https://colab.research.google.com/drive/1bOzVaDQo8h6Ngstb7AcfzC35OihpHspt for classifier Module
