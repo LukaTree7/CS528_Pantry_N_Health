@@ -22,3 +22,5 @@ Here are the different folders/files responsible for:
 
 When running Pantry&Health, the mobile device must deployed with Google Play Service. Before running our project, you need to sync the dependencies by entering the libs.version.toml file. And make sure the compileSdk version and targetSdk version are the same with your android device inside app build.gradle.kts.
 
+Here's the datasets we used for MobileNetv2 training:
+https://www.kaggle.com/datasets/swoyam2609/fresh-and-stale-classification/data
