@@ -27,3 +27,13 @@ https://www.kaggle.com/datasets/swoyam2609/fresh-and-stale-classification/data
 
 Here's the demo of Pantry&Health:
 https://youtube.com/shorts/V105TiAgEis?feature=shared
+
+Reference Materials:
+1. Google. (n.d.). ML Kit Barcode Scanning API. https://developers.google.com/ml-kit/vision/barcode-scanning
+2. Used Assignment 3 Geofence code and Google. (n.d.). Geofencing with Location APIs. Retrieved from https://developer.android.com/training/location/geofencing for exercise module
+3. Fresh and Stale Classification Dataset [Data set]. Kaggle. https://www.kaggle.com/datasets/swoyam2609/fresh-and-stale-classification 
+4. TensorFlow. (n.d.). TensorFlow Lite for mobile and embedded devices. Retrieved from https://www.tensorflow.org/lite
+5. Used Assignment 3 step counter code and Google. (n.d.). SensorManager | Android Developers. Retrieved from https://developer.android.com/reference/android/hardware/SensorManager for exercise module
+6. Android Developers. (n.d.). Jetpack Compose. Retrieved from https://developer.android.com/jetpack/compose
+7. Android Developers. (n.d.). Room persistence library: Store and manage your app’s data. Retrieved from https://developer.android.com/jetpack/androidx/releases/room
+8. Used Assignment 2 : Face Detection code for classifier Module
