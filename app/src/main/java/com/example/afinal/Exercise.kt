@@ -136,6 +136,28 @@ fun ExerciseScreen(
         String.format("%.1f", appState.stepCount * 0.04)
     }
 
+    val bmi = remember(height, weight) {
+        if (height.isNotBlank() && weight.isNotBlank()) {
+            val h = height.toFloatOrNull()
+            val w = weight.toFloatOrNull()
+            if (h != null && w != null && h > 0 && w > 0) {
+                String.format("%.1f", w / ((h / 100) * (h / 100)))
+            } else {
+                ""
+            }
+        } else {
+            ""
+        }
+    }
+
+    val ageInt = age.toIntOrNull()
+
+    val recommendedSteps = remember(bmi, ageInt) {
+        if (bmi != null && ageInt != null && ageInt > 0) {
+            getStepRecommendation(bmi.toFloat(), ageInt)
+        } else null
+    }
+
     // Add Geofence
     LaunchedEffect(Unit) {
         addGeofences(
@@ -294,7 +316,7 @@ fun ExerciseScreen(
                         if( currentAccount != null ) {
                             if( appState.height.isNotEmpty() && appState.weight.isNotEmpty() && appState.age.isNotEmpty()) {
                                 Text(
-                                    text = "Every step you take brings you closer to your goal. Aim for 8,000 steps today — it's not just about walking, it's about creating a healthier, stronger you. Keep moving, stay motivated, and remember that progress, no matter how small, is still progress!",
+                                    text = "Every step you take brings you closer to your goal. Aim for $recommendedSteps steps today — it's not just about walking, it's about creating a healthier, stronger you. Keep moving, stay motivated, and remember that progress, no matter how small, is still progress!",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                                 Button(
@@ -474,6 +496,36 @@ fun ExerciseScreen(
         }
         onDispose {
             sensorManager.unregisterListener(sensorListener)
+        }
+    }
+}
+
+fun getStepRecommendation(bmi: Float, age: Int): Int {
+    return when {
+        age < 18 -> 8000
+        age < 40 -> {
+            when {
+                bmi < 18.5 -> 7000
+                bmi < 25 -> 9000
+                bmi < 30 -> 11000
+                else -> 13000
+            }
+        }
+        age < 60 -> {
+            when {
+                bmi < 18.5 -> 6000
+                bmi < 25 -> 8000
+                bmi < 30 -> 10000
+                else -> 12000
+            }
+        }
+        else -> {
+            when {
+                bmi < 18.5 -> 5000
+                bmi < 25 -> 7000
+                bmi < 30 -> 9000
+                else -> 11000
+            }
         }
     }
 }
