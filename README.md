@@ -24,3 +24,6 @@ When running Pantry&Health, the mobile device must deployed with Google Play Ser
 
 Here's the datasets we used for MobileNetv2 training:
 https://www.kaggle.com/datasets/swoyam2609/fresh-and-stale-classification/data
+
+Here's the demo of Pantry&Health:
+https://youtube.com/shorts/V105TiAgEis?feature=shared
