@@ -20,15 +20,15 @@ Pantry&Health has 5 screens including Exercise, Pantry&Barcode Scanner, Freshnes
 - Google Maps Geofencing
 - ML Kit Barcode Scanning
   
-<img src="Login_register.png" width=900 height=700 />
+<img src="Login_register.png" width=900 height=500 />
 
-<img src="Track_Exercise.png" width=900 height=700 />
+<img src="Track_Exercise.png" width=900 height=500 />
 
-<img src="Pantry_tracker_barcode_scanner.png" width=900 height=700 />
+<img src="Pantry_tracker_barcode_scanner.png" width=900 height=500 />
 
-<img src="Freshness_detector.png" width=900 height=700/>
+<img src="Freshness_detector.png" width=900 height=500/>
 
-<img src="Settings.png" width=900 height=700/>
+<img src="Settings.png" width=900 height=500/>
 
 
 Here are the different folders/files responsible for:
