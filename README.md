@@ -1,8 +1,7 @@
-# CS528_Pantry_N_Health
+# CS528_Pantry_N_Health : PH
 
 ## About the App:
 PH (Pantry & Health) is an innovative Android app that helps students reduce food waste, track nutrition, and maintain healthy habits through smart technology.
-Pantry&Health has 5 screens including Exercise, Pantry&Barcode Scanner, Freshness Scanner, Login&Register, Settings.
 
 ## Key Features:
 - AI Food Freshness Scanner: Uses a custom MobileNetV2 model (99.38% accuracy) to detect spoiled food via camera
@@ -19,6 +18,8 @@ Pantry&Health has 5 screens including Exercise, Pantry&Barcode Scanner, Freshnes
 - TensorFlow Lite
 - Google Maps Geofencing
 - ML Kit Barcode Scanning
+
+PH (Pantry & Health) has 5 screens including Exercise, Pantry&Barcode Scanner, Freshness Scanner, Login&Register, Settings.
 
 ## Login & registeration 
 <img src="Login_register.png" width=700 height=500 />
